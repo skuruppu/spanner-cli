@@ -322,14 +322,14 @@ func TestBuildStatement(t *testing.T) {
 			},
 		},
 		{
-			desc:  "BEGIN RW statement with ISOLATION LEVEL",
+			desc:  "BEGIN RW statement with ISOLATION LEVEL SERIALIZABLE",
 			input: "BEGIN RW ISOLATION LEVEL SERIALIZABLE",
 			want: &BeginRwStatement{
 				IsolationLevel: pb.TransactionOptions_SERIALIZABLE,
 			},
 		},
 		{
-			desc:  "BEGIN RW statement with ISOLATION LEVEL",
+			desc:  "BEGIN RW statement with ISOLATION LEVEL REPEATABLE READ",
 			input: "BEGIN RW ISOLATION LEVEL REPEATABLE READ",
 			want: &BeginRwStatement{
 				IsolationLevel: pb.TransactionOptions_REPEATABLE_READ,
@@ -356,6 +356,47 @@ func TestBuildStatement(t *testing.T) {
 			input: "BEGIN RW ISOLATION LEVEL REPEATABLE READ PRIORITY MEDIUM TAG app=spanner-cli",
 			want: &BeginRwStatement{
 				IsolationLevel: pb.TransactionOptions_REPEATABLE_READ,
+				Priority:       pb.RequestOptions_PRIORITY_MEDIUM,
+				Tag:            "app=spanner-cli",
+			},
+		},
+		{
+			desc:  "BEGIN RW statement with READ LOCK MODE PESSIMISTIC",
+			input: "BEGIN RW READ LOCK MODE PESSIMISTIC",
+			want: &BeginRwStatement{
+				ReadLockMode: pb.TransactionOptions_ReadWrite_PESSIMISTIC,
+			},
+		},
+		{
+			desc:  "BEGIN RW statement with READ LOCK MODE OPTIMISTIC",
+			input: "BEGIN RW READ LOCK MODE OPTIMISTIC",
+			want: &BeginRwStatement{
+				ReadLockMode: pb.TransactionOptions_ReadWrite_OPTIMISTIC,
+			},
+		},
+		{
+			desc:  "BEGIN RW statement with ISOLATION LEVEL and READ LOCK MODE",
+			input: "BEGIN RW ISOLATION LEVEL SERIALIZABLE READ LOCK MODE OPTIMISTIC",
+			want: &BeginRwStatement{
+				IsolationLevel: pb.TransactionOptions_SERIALIZABLE,
+				ReadLockMode:   pb.TransactionOptions_ReadWrite_OPTIMISTIC,
+			},
+		},
+		{
+			desc:  "BEGIN RW statement with ISOLATION LEVEL, READ LOCK MODE and TAG",
+			input: "BEGIN RW ISOLATION LEVEL REPEATABLE READ READ LOCK MODE PESSIMISTIC TAG app=spanner-cli",
+			want: &BeginRwStatement{
+				IsolationLevel: pb.TransactionOptions_REPEATABLE_READ,
+				ReadLockMode:   pb.TransactionOptions_ReadWrite_PESSIMISTIC,
+				Tag:            "app=spanner-cli",
+			},
+		},
+		{
+			desc:  "BEGIN RW statement with ISOLATION LEVEL, READ LOCK MODE, PRIORITY and TAG",
+			input: "BEGIN RW ISOLATION LEVEL REPEATABLE READ READ LOCK MODE OPTIMISTIC PRIORITY MEDIUM TAG app=spanner-cli",
+			want: &BeginRwStatement{
+				IsolationLevel: pb.TransactionOptions_REPEATABLE_READ,
+				ReadLockMode:   pb.TransactionOptions_ReadWrite_OPTIMISTIC,
 				Priority:       pb.RequestOptions_PRIORITY_MEDIUM,
 				Tag:            "app=spanner-cli",
 			},

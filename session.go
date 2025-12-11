@@ -120,7 +120,7 @@ func (s *Session) InReadOnlyTransaction() bool {
 }
 
 // BeginReadWriteTransaction starts read-write transaction.
-func (s *Session) BeginReadWriteTransaction(ctx context.Context, isolation_level pb.TransactionOptions_IsolationLevel, priority pb.RequestOptions_Priority, tag string) error {
+func (s *Session) BeginReadWriteTransaction(ctx context.Context, isolation_level pb.TransactionOptions_IsolationLevel, read_lock_mode pb.TransactionOptions_ReadWrite_ReadLockMode, priority pb.RequestOptions_Priority, tag string) error {
 	if s.InReadWriteTransaction() {
 		return errors.New("read-write transaction is already running")
 	}
@@ -134,6 +134,7 @@ func (s *Session) BeginReadWriteTransaction(ctx context.Context, isolation_level
 		CommitOptions:  spanner.CommitOptions{ReturnCommitStats: true},
 		CommitPriority: priority,
 		IsolationLevel: isolation_level,
+		ReadLockMode:   read_lock_mode,
 		TransactionTag: tag,
 	}
 	txn, err := spanner.NewReadWriteStmtBasedTransactionWithOptions(ctx, s.client, opts)

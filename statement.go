@@ -110,7 +110,7 @@ var (
 	pdmlRe = regexp.MustCompile(`(?is)^PARTITIONED\s+((?:INSERT|UPDATE|DELETE)\s+.+$)`)
 
 	// Transaction
-	beginRwRe  = regexp.MustCompile(`(?is)^BEGIN(?:\s+RW)?(?:\s+ISOLATION LEVEL\s+(SERIALIZABLE|REPEATABLE READ))?(?:\s+PRIORITY\s+(HIGH|MEDIUM|LOW))?(?:\s+TAG\s+(.+))?$`)
+	beginRwRe  = regexp.MustCompile(`(?is)^BEGIN(?:\s+RW)?(?:\s+ISOLATION LEVEL\s+(SERIALIZABLE|REPEATABLE READ))?(?:\s+READ LOCK MODE\s+(PESSIMISTIC|OPTIMISTIC))?(?:\s+PRIORITY\s+(HIGH|MEDIUM|LOW))?(?:\s+TAG\s+(.+))?$`)
 	beginRoRe  = regexp.MustCompile(`(?is)^BEGIN\s+RO(?:\s+([^\s]+))?(?:\s+PRIORITY\s+(HIGH|MEDIUM|LOW))?(?:\s+TAG\s+(.+))?$`)
 	commitRe   = regexp.MustCompile(`(?is)^COMMIT$`)
 	rollbackRe = regexp.MustCompile(`(?is)^ROLLBACK$`)
@@ -992,6 +992,7 @@ func runInNewOrExistRwTxForExplain(ctx context.Context, session *Session, f func
 
 type BeginRwStatement struct {
 	IsolationLevel pb.TransactionOptions_IsolationLevel
+	ReadLockMode   pb.TransactionOptions_ReadWrite_ReadLockMode
 	Priority       pb.RequestOptions_Priority
 	Tag            string
 }
@@ -1009,15 +1010,23 @@ func newBeginRwStatement(input string) (*BeginRwStatement, error) {
 	}
 
 	if matched[2] != "" {
-		priority, err := parsePriority(matched[2])
+		readLockMode, err := parseReadLockMode(matched[2])
+		if err != nil {
+			return nil, err
+		}
+		stmt.ReadLockMode = readLockMode
+	}
+
+	if matched[3] != "" {
+		priority, err := parsePriority(matched[3])
 		if err != nil {
 			return nil, err
 		}
 		stmt.Priority = priority
 	}
 
-	if matched[3] != "" {
-		stmt.Tag = matched[3]
+	if matched[4] != "" {
+		stmt.Tag = matched[4]
 	}
 
 	return stmt, nil
@@ -1031,7 +1040,7 @@ func (s *BeginRwStatement) Execute(ctx context.Context, session *Session) (*Resu
 		return nil, errors.New("you're in read-only transaction. Please finish the transaction by 'CLOSE;'")
 	}
 
-	if err := session.BeginReadWriteTransaction(ctx, s.IsolationLevel, s.Priority, s.Tag); err != nil {
+	if err := session.BeginReadWriteTransaction(ctx, s.IsolationLevel, s.ReadLockMode, s.Priority, s.Tag); err != nil {
 		return nil, err
 	}
 
@@ -1208,5 +1217,16 @@ func parseIsolationLevel(isolationLevel string) (pb.TransactionOptions_Isolation
 		return pb.TransactionOptions_REPEATABLE_READ, nil
 	default:
 		return pb.TransactionOptions_ISOLATION_LEVEL_UNSPECIFIED, fmt.Errorf("invalid isolation level: %q", isolationLevel)
+	}
+}
+
+func parseReadLockMode(readLockMode string) (pb.TransactionOptions_ReadWrite_ReadLockMode, error) {
+	switch strings.ToUpper(readLockMode) {
+	case "PESSIMISTIC":
+		return pb.TransactionOptions_ReadWrite_PESSIMISTIC, nil
+	case "OPTIMISTIC":
+		return pb.TransactionOptions_ReadWrite_OPTIMISTIC, nil
+	default:
+		return pb.TransactionOptions_ReadWrite_READ_LOCK_MODE_UNSPECIFIED, fmt.Errorf("invalid read lock mode: %q", readLockMode)
 	}
 }
